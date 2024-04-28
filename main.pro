@@ -86,7 +86,37 @@ get_object_location_from_subtype(Objects, Object_Subtype, [X, Y]) :-
 
 
 % 5- find_nearest_agent(+State, +AgentId, -Coordinates, -NearestAgent)
-%find_nearest_agent(State, AgentId, Coordinates, NearestAgent) :-
+find_nearest_agent(State, AgentId, Coordinates, NearestAgent) :-
+    State = [Agents, _, _, _],
+    get_agent(State, AgentId, Agent1),  % Our Agent
+    get_dict(CurId, Agents, Agent2),  % Choose a candidate for the nearest agent, suppose Agent2 is the closest agent for now
+    Agent1 \= Agent2,  % Make sure Agent2 is not the same as Agent1
+    agents_distance(Agent1, Agent2, CurMinDistance),
+    dict_pairs(Agents, _, Pairs),
+    find_nearest_agent_Id(Agent1, Pairs, CurMinDistance, _, CurId, Id),  % Find the Id of the agent that is closest to our Agent1
+    NearestAgent = Agents.Id,
+    Coordinates = [NearestAgent.x, NearestAgent.y],
+    !.
+
+% Helper function to keep track of the nearest agent with the minimum distance to a given Agent
+find_nearest_agent_Id(_, [], CurMinDistance, CurMinDistance, CurMinId, CurMinId).
+
+find_nearest_agent_Id(Agent1, [K-V|T], CurMinDistance, MinDistance, CurMinId, MinId) :-
+    % If agents are same, pass
+    (
+        Agent1 = V,
+        find_nearest_agent_Id(Agent1, T, CurMinDistance, MinDistance, CurMinId, MinId)
+    );
+    
+    % If agents are different, check if a new minimum distance can be found
+    agents_distance(Agent1, V, CurrentDistance),
+    CurrentDistance < CurMinDistance,  % A new minimum distance has been found
+    find_nearest_agent_Id(Agent1, T, CurrentDistance, MinDistance, K, MinId).
+
+find_nearest_agent_Id(Agent1, [_-V|T], CurMinDistance, MinDistance, CurMinId, MinId) :-
+    agents_distance(Agent1, V, CurrentDistance),
+    CurrentDistance >= CurMinDistance,  % Recorded minimum distance has not been changed
+    find_nearest_agent_Id(Agent1, T, CurMinDistance, MinDistance, CurMinId, MinId).
 
 
 % 6- find_nearest_food(+State, +AgentId, -Coordinates, -FoodType, -Distance)
