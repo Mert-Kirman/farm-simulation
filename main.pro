@@ -120,6 +120,56 @@ find_nearest_agent_Id(Agent1, [_-V|T], CurMinDistance, MinDistance, CurMinId, Mi
 
 
 % 6- find_nearest_food(+State, +AgentId, -Coordinates, -FoodType, -Distance)
+find_nearest_food(State, AgentId, Coordinates, FoodType, Distance) :-
+    State = [Agents, Objects, _, _],
+    get_agent(State, AgentId, Agent1),  % Get the agent we want to find the nearest food for
+    (
+        (Agent1.type = carnivore -> % If Agent1 is a wolf
+            get_dict(CurId, Agents, Agent2), % Food is either cow or chicken, both of which are in the Agents dictionary
+            Agent1 \= Agent2,
+            agents_distance(Agent1, Agent2, CurMinDistance),
+            dict_pairs(Agents, _, Pairs)  % Food will be searched in the Agents dictionary
+        );
+
+        (Agent1.type = herbivore -> % Agent1 is either a cow or a chicken
+            get_dict(CurId, Objects, Object), % Food item is in the Objects dictionary
+            agents_distance(Agent1, Object, CurMinDistance),
+            dict_pairs(Objects, _, Pairs)  % Food will be searched in the Objects dictionary
+        )
+    ),
+    find_nearest_food_Id(Agent1, Pairs, CurMinDistance, Distance, CurId, Id),  % Get the Id of the nearest food item
+    (
+        (Agent1.type = carnivore ->
+            NearestFood = Agents.Id    
+        );
+        (Agent1.type = herbivore ->
+            NearestFood = Objects.Id  
+        )
+    ),
+    Coordinates = [NearestFood.x, NearestFood.y],
+    FoodType = NearestFood.subtype,
+    !.
+
+
+% Helper function to keep track of the nearest food item Id with the minimum distance to a given Agent
+find_nearest_food_Id(_, [], CurMinDistance, CurMinDistance, CurMinId, CurMinId).
+
+find_nearest_food_Id(Agent1, [K-V|T], CurMinDistance, MinDistance, CurMinId, MinId) :-
+    % If agents are same in case agent1 is a wolf or if agent1 does not eat the current food, pass
+    (
+        (\+ can_eat(Agent1.subtype, V.subtype)),
+        find_nearest_food_Id(Agent1, T, CurMinDistance, MinDistance, CurMinId, MinId)
+    );
+    
+    % If agents are different when agent1 is a wolf or agent1 eats the food, check if a new minimum distance can be found
+    agents_distance(Agent1, V, CurrentDistance),
+    CurrentDistance < CurMinDistance,  % A new minimum distance has been found
+    find_nearest_food_Id(Agent1, T, CurrentDistance, MinDistance, K, MinId).
+
+find_nearest_food_Id(Agent1, [_-V|T], CurMinDistance, MinDistance, CurMinId, MinId) :-
+    agents_distance(Agent1, V, CurrentDistance),
+    CurrentDistance >= CurMinDistance,  % Recorded minimum distance has not been changed
+    find_nearest_food_Id(Agent1, T, CurMinDistance, MinDistance, CurMinId, MinId).
 
 % 7- move_to_coordinate(+State, +AgentId, +X, +Y, -ActionList, +DepthLimit)
 
