@@ -172,6 +172,18 @@ find_nearest_food_Id(Agent1, [_-V|T], CurMinDistance, MinDistance, CurMinId, Min
     find_nearest_food_Id(Agent1, T, CurMinDistance, MinDistance, CurMinId, MinId).
 
 % 7- move_to_coordinate(+State, +AgentId, +X, +Y, -ActionList, +DepthLimit)
+move_to_coordinate(State, AgentId, X, Y, [], _) :-  % Check if location has been reached
+    get_agent(State, AgentId, Agent),
+    Agent.x = X, Agent.y = Y. % If agent has reached the destination location
+
+move_to_coordinate(State, AgentId, X, Y, ActionList, DepthLimit) :-  % Agent has not reached the location and depth limit not exceeded yet
+    DepthLimit > 0,
+    get_agent(State, AgentId, Agent),
+    can_move(Agent.subtype, Action),  % Get possible directions the agent can move along
+    move(State, AgentId, Action, NewState),  % Check if this move can be made (no obstacles or map borders)
+    NewDepthLimit is DepthLimit - 1,
+    ActionList = [Action|RestOfActionList],
+    move_to_coordinate(NewState, AgentId, X, Y, RestOfActionList, NewDepthLimit).
 
 % 8- move_to_nearest_food(+State, +AgentId, -ActionList, +DepthLimit)
 
