@@ -186,6 +186,10 @@ move_to_coordinate(State, AgentId, X, Y, ActionList, DepthLimit) :-  % Agent has
     move_to_coordinate(NewState, AgentId, X, Y, RestOfActionList, NewDepthLimit).
 
 % 8- move_to_nearest_food(+State, +AgentId, -ActionList, +DepthLimit)
+move_to_nearest_food(State, AgentId,ActionList, DepthLimit) :-
+    find_nearest_food(State, AgentId, Coordinates, _, _),  % Find the coordinates of the nearest food
+    [X,Y] = Coordinates,
+    move_to_coordinate(State, AgentId, X, Y, ActionList, DepthLimit).
 
 % 9- consume_all(+State, +AgentId, -NumberOfMoves, -Value, NumberOfChildren +DepthLimit)
 
