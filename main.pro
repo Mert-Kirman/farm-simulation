@@ -126,13 +126,15 @@ find_nearest_food(State, AgentId, Coordinates, FoodType, Distance) :-
     (
         (Agent1.type = carnivore -> % If Agent1 is a wolf
             get_dict(CurId, Agents, Agent2), % Food is either cow or chicken, both of which are in the Agents dictionary
-            Agent1 \= Agent2,
+            Agent1 \= Agent2,  % Food candidate cannot be itself
+            Agent2.subtype \= wolf,  % Food candidate cannot be a wolf
             agents_distance(Agent1, Agent2, CurMinDistance),
             dict_pairs(Agents, _, Pairs)  % Food will be searched in the Agents dictionary
         );
 
         (Agent1.type = herbivore -> % Agent1 is either a cow or a chicken
             get_dict(CurId, Objects, Object), % Food item is in the Objects dictionary
+            can_eat(Agent1.subtype, Object.subtype),
             agents_distance(Agent1, Object, CurMinDistance),
             dict_pairs(Objects, _, Pairs)  % Food will be searched in the Objects dictionary
         )
@@ -277,7 +279,7 @@ find_nodes_to_visit(State, AgentId, PossibleActions, NewNodesToVisit, ParentDept
     State = [Agents, _, _, _],
     PossibleActions = [CurrentAction|T],
     call(CurrentAction, AgentId, Agents, NewAgent),
-    NewDepth is ParentDepth + 1,  % These neighbor nodes will hape +1 depth compared to their parent node
+    NewDepth is ParentDepth + 1,  % These neighbor nodes will have +1 depth compared to their parent node
     NewNodeToVisit = [NewDepth, NewAgent.x, NewAgent.y],  % Initialize the new node with depth of '0'
     find_nodes_to_visit(State, AgentId, T, TmpNewNodesToVisit, ParentDepth),
     NewNodesToVisit = [NewNodeToVisit | TmpNewNodesToVisit].
