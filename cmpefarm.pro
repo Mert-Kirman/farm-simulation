@@ -67,9 +67,10 @@ is_occupied(herbivore, AgentId, X, Y, Agents):-
     ).
 
 % is_occupied/5 predicate is true if the position is out of the map for carnivores
-is_occupied(carnivore, _, X, Y, _):-
+is_occupied(carnivore, AgentId, X, Y, Agents):-
     width(Width), height(Height),
-    (X < 1; Y < 1; X >= Width-1; Y >= Height-1).
+    ((X < 1; Y < 1; X >= Width-1; Y >= Height-1);
+     (get_dict(Id, Agents, Agent), Id \= AgentId, Agent.type = carnivore, Agent.x = X, Agent.y = Y) ). 
 
 
 is_occupied_rep(Agents, Objects, AgentId, Action):-
@@ -147,9 +148,9 @@ reproduce(State, AgentId, NewState):-
 
     %print_state([NAs, Objects, Time, TurnOrder]), nl,
     (
-        random_move(NAs, Objects, N1, NewAction)
+        move_rep(NAs, Objects, N1, NewActionList)
     ),
-    call(NewAction, N1, NAs, NewAgent),
+    (member(NewAction, NewActionList), !, call(NewAction, N1, NAs, NewAgent)),
     put_dict(N1, NAs, NewAgent, NewAgents),
     update_turn_order(N1, TurnOrder, NewTurnOrder),
     NewState = [NewAgents, Objects, Time, NewTurnOrder].
@@ -301,6 +302,17 @@ random_move_list(State, R, [Action_|T]):-
     random_member(Action_, ActionList),
     R1 is R + 1,
     random_move_list(State, R1, T).
+
+move_rep(Agents, Objects, AgentId, ActionList):-
+    findall(
+        Action_, 
+        (
+            get_dict(AgentId, Agents, Agent),
+            can_move(Agent.subtype, Action_),
+            call(Action_, AgentId, Agents, _),
+            \+is_occupied_rep(Agents, Objects, AgentId, Action_)), 
+        ActionList
+        ).
     
 /**************************************************/
 

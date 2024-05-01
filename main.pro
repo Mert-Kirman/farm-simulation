@@ -192,5 +192,95 @@ move_to_nearest_food(State, AgentId,ActionList, DepthLimit) :-
     move_to_coordinate(State, AgentId, X, Y, ActionList, DepthLimit).
 
 % 9- consume_all(+State, +AgentId, -NumberOfMoves, -Value, NumberOfChildren +DepthLimit)
+consume_all(State, AgentId, NumberOfMoves, Value, NumberOfChildren, _) :-  % Base case, no more nearest food can be found
+    (\+ find_nearest_food(State, AgentId, _, _, _) ) ->
+        value_of_farm(State, Value),  % Return total farm value
+        NumberOfMoves is 0,
+        get_agent(State, AgentId, Agent),
+        NumberOfChildren is Agent.children.  % Return children count of our agent
+
+consume_all(State, AgentId, NumberOfMoves, Value, NumberOfChildren, DepthLimit) :-
+    % Find the coordinates of the nearest food that is reachable
+    find_nearest_food(State, AgentId, Coordinates, _, _),
+    Coordinates = [Target_X,Target_Y],
+
+    % Find the minimum number of moves to reach the food with coordinates [x, y]
+    get_agent(State, AgentId, Agent),
+    smallest_number_of_moves(State, AgentId, Agent.x, Agent.y, Target_X, Target_Y, MinNumberOfMoves, DepthLimit, [[0, Agent.x, Agent.y]], []),
+    
+    % Move the agent to the food's location and create the modified state
+    State = [Agents, Objects, Time, Turnorder],
+    put_dict(x, Agent, Target_X, NewAgent1),
+    put_dict(y, NewAgent1, Target_Y, NewAgent2),
+    put_dict(AgentId, Agents, NewAgent2, NewAgents),
+    NewState = [NewAgents, Objects, Time, Turnorder],
+
+    % Agent eats the food
+    eat(NewState, AgentId, NewState2),
+
+    % Continue until the agent can no more eat food
+    consume_all(NewState2, AgentId, TmpNumberOfMoves, Value, NumberOfChildren, DepthLimit),
+
+    % Return values requested
+    NumberOfMoves is TmpNumberOfMoves + MinNumberOfMoves.
+    
+% Function to calculate the shortest path to a given coordinate and return amount of moves
+smallest_number_of_moves(_, _, Agent_X, Agent_Y, Target_X, Target_Y, MinNumberOfMoves, _, _, _) :-  % Base case
+    Agent_X = Target_X, Agent_Y = Target_Y,  % Target location reached
+    MinNumberOfMoves = 0.
+
+smallest_number_of_moves(State, AgentId, Agent_X, Agent_Y, Target_X, Target_Y, MinNumberOfMoves, DepthLimit, NodesToVisit, VisitedNodes) :-
+    % Remove the current node as it is not the target node and add it to the visited nodes list
+    NodesToVisit = [VisitedNode|UnvisitedNodes],
+    UpdatedVisitedNodes = [VisitedNode|VisitedNodes],
+
+    % Depth limit should not be exceeded
+    VisitedNode = [Depth|_],
+    Depth < DepthLimit,
+
+    % Create the new state for move predicate to use and find PossibleActions
+    State = [Agents, Objects, Time, Turnorder],
+    get_agent(State, AgentId, Agent),
+    put_dict(x, Agent, Agent_X, NewAgent1),
+    put_dict(y, NewAgent1, Agent_Y, NewAgent2),
+    put_dict(AgentId, Agents, NewAgent2, NewAgents),
+    NewState = [NewAgents, Objects, Time, Turnorder],
+
+    % Gather possible moves(no obstacle or border) inside 'PossibleActions' list, do not involve moves that will result in a previously visited node
+    findall(
+        Action, 
+        (can_move(Agent.subtype, Action), move(NewState, AgentId, Action, TmpNewState), get_agent(TmpNewState, AgentId, TmpAgent), \+member([_, TmpAgent.x, TmpAgent.y], VisitedNodes)),
+        PossibleActions
+    ),
+
+    % Apply BFS to find shortest path
+    find_nodes_to_visit(NewState, AgentId, PossibleActions, NewNodesToVisit),
+    enqueue(NewNodesToVisit, UnvisitedNodes, UpdatedNodesToVisit),
+
+    % Recursion until base case is reached
+    UpdatedNodesToVisit = [NextNode|T],  % Get the NextNode to visit
+    NextNode = [_, New_Agent_X, New_Agent_Y],
+    UpdatedDepth is Depth + 1,
+    UpdatedNextNode = [UpdatedDepth, New_Agent_X, New_Agent_Y],  % Add depth info to the NextNode
+    DepthUpdatedNodesToVisit = [UpdatedNextNode | T],
+    smallest_number_of_moves(NewState, AgentId, New_Agent_X, New_Agent_Y, Target_X, Target_Y, TmpMinNumberOfMoves, DepthLimit, DepthUpdatedNodesToVisit, UpdatedVisitedNodes),
+
+    % Return number of moves
+    MinNumberOfMoves is TmpMinNumberOfMoves + 1.
+
+% Function to append first list to the end of the second list, imitating an enqueue operation
+enqueue(List1, [], List1).
+enqueue(List1, [H|List2], [H|List3]) :- enqueue(List1, List2, List3).
+
+% Function to find new nodes to visit by using an action list
+find_nodes_to_visit(_, _, [], []).  % Base case
+
+find_nodes_to_visit(State, AgentId, PossibleActions, NewNodesToVisit) :-
+    State = [Agents, _, _, _],
+    PossibleActions = [CurrentAction|T],
+    call(CurrentAction, AgentId, Agents, NewAgent),
+    NewNodeToVisit = [0, NewAgent.x, NewAgent.y],  % Initialize the new node with depth of '0'
+    find_nodes_to_visit(State, AgentId, T, TmpNewNodesToVisit),
+    NewNodesToVisit = [NewNodeToVisit | TmpNewNodesToVisit].
 
 
