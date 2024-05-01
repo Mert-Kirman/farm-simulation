@@ -197,7 +197,8 @@ consume_all(State, AgentId, NumberOfMoves, Value, NumberOfChildren, _) :-  % Bas
         value_of_farm(State, Value),  % Return total farm value
         NumberOfMoves is 0,
         get_agent(State, AgentId, Agent),
-        NumberOfChildren is Agent.children.  % Return children count of our agent
+        NumberOfChildren is Agent.children,  % Return children count of our agent
+        !.
 
 consume_all(State, AgentId, NumberOfMoves, Value, NumberOfChildren, DepthLimit) :-
     % Find the coordinates of the nearest food that is reachable
@@ -225,9 +226,12 @@ consume_all(State, AgentId, NumberOfMoves, Value, NumberOfChildren, DepthLimit) 
     NumberOfMoves is TmpNumberOfMoves + MinNumberOfMoves.
     
 % Function to calculate the shortest path to a given coordinate and return amount of moves
-smallest_number_of_moves(_, _, Agent_X, Agent_Y, Target_X, Target_Y, MinNumberOfMoves, _, _, _) :-  % Base case
+smallest_number_of_moves(_, _, Agent_X, Agent_Y, Target_X, Target_Y, MinNumberOfMoves, _, NodesToVisit, _) :-  % Base case
     Agent_X = Target_X, Agent_Y = Target_Y,  % Target location reached
-    MinNumberOfMoves = 0.
+    NodesToVisit = [VisitedNode|_],
+    VisitedNode = [Depth|_],
+    MinNumberOfMoves = Depth,
+    !.
 
 smallest_number_of_moves(State, AgentId, Agent_X, Agent_Y, Target_X, Target_Y, MinNumberOfMoves, DepthLimit, NodesToVisit, VisitedNodes) :-
     % Remove the current node as it is not the target node and add it to the visited nodes list
@@ -249,38 +253,31 @@ smallest_number_of_moves(State, AgentId, Agent_X, Agent_Y, Target_X, Target_Y, M
     % Gather possible moves(no obstacle or border) inside 'PossibleActions' list, do not involve moves that will result in a previously visited node
     findall(
         Action, 
-        (can_move(Agent.subtype, Action), move(NewState, AgentId, Action, TmpNewState), get_agent(TmpNewState, AgentId, TmpAgent), \+member([_, TmpAgent.x, TmpAgent.y], VisitedNodes)),
+        (can_move(Agent.subtype, Action), move(NewState, AgentId, Action, TmpNewState), get_agent(TmpNewState, AgentId, TmpAgent), \+member([_, TmpAgent.x, TmpAgent.y], UpdatedVisitedNodes), \+member([_, TmpAgent.x, TmpAgent.y], UnvisitedNodes)),
         PossibleActions
     ),
 
     % Apply BFS to find shortest path
-    find_nodes_to_visit(NewState, AgentId, PossibleActions, NewNodesToVisit),
+    find_nodes_to_visit(NewState, AgentId, PossibleActions, NewNodesToVisit, Depth),
     enqueue(NewNodesToVisit, UnvisitedNodes, UpdatedNodesToVisit),
 
     % Recursion until base case is reached
-    UpdatedNodesToVisit = [NextNode|T],  % Get the NextNode to visit
+    UpdatedNodesToVisit = [NextNode|_],  % Get the NextNode to visit
     NextNode = [_, New_Agent_X, New_Agent_Y],
-    UpdatedDepth is Depth + 1,
-    UpdatedNextNode = [UpdatedDepth, New_Agent_X, New_Agent_Y],  % Add depth info to the NextNode
-    DepthUpdatedNodesToVisit = [UpdatedNextNode | T],
-    smallest_number_of_moves(NewState, AgentId, New_Agent_X, New_Agent_Y, Target_X, Target_Y, TmpMinNumberOfMoves, DepthLimit, DepthUpdatedNodesToVisit, UpdatedVisitedNodes),
-
-    % Return number of moves
-    MinNumberOfMoves is TmpMinNumberOfMoves + 1.
+    smallest_number_of_moves(NewState, AgentId, New_Agent_X, New_Agent_Y, Target_X, Target_Y, MinNumberOfMoves, DepthLimit, UpdatedNodesToVisit, UpdatedVisitedNodes).
 
 % Function to append first list to the end of the second list, imitating an enqueue operation
 enqueue(List1, [], List1).
 enqueue(List1, [H|List2], [H|List3]) :- enqueue(List1, List2, List3).
 
 % Function to find new nodes to visit by using an action list
-find_nodes_to_visit(_, _, [], []).  % Base case
+find_nodes_to_visit(_, _, [], [], _).  % Base case
 
-find_nodes_to_visit(State, AgentId, PossibleActions, NewNodesToVisit) :-
+find_nodes_to_visit(State, AgentId, PossibleActions, NewNodesToVisit, ParentDepth) :-
     State = [Agents, _, _, _],
     PossibleActions = [CurrentAction|T],
     call(CurrentAction, AgentId, Agents, NewAgent),
-    NewNodeToVisit = [0, NewAgent.x, NewAgent.y],  % Initialize the new node with depth of '0'
-    find_nodes_to_visit(State, AgentId, T, TmpNewNodesToVisit),
+    NewDepth is ParentDepth + 1,  % These neighbor nodes will hape +1 depth compared to their parent node
+    NewNodeToVisit = [NewDepth, NewAgent.x, NewAgent.y],  % Initialize the new node with depth of '0'
+    find_nodes_to_visit(State, AgentId, T, TmpNewNodesToVisit, ParentDepth),
     NewNodesToVisit = [NewNodeToVisit | TmpNewNodesToVisit].
-
-
