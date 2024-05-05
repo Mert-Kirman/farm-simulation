@@ -1,30 +1,27 @@
-% name surname
-% id
-% compiling: yes
-% complete: yes
-
-
 :- ['cmpefarm.pro'].
 :- init_from_map.
 
 
 % 1- agents_distance(+Agent1, +Agent2, -Distance)
+% Predicate that computes the Manhattan distance between two agents
 agents_distance(Agent1, Agent2, Distance) :-
     Distance is abs(Agent1.x - Agent2.x) + abs(Agent1.y - Agent2.y).
 
 % 2- number_of_agents(+State, -NumberOfAgents)
+% Predicate that finds the total number of agents in a State
 number_of_agents(State, NumberOfAgents) :-
     State = [Agents, _, _, _],
     dict_pairs(Agents, _, Pairs),
     find_length(Pairs, NumberOfAgents).
 
-% Function for finding the length of a list
+% Predicate for finding the length of a list
 find_length([], 0).
 find_length([_|T], Length) :-
     find_length(T, Accumulator),
     Length is Accumulator + 1.
 
 % 3- value_of_farm(+State, -Value)
+% Predicate that calculates the total value of all products on the farm
 value_of_farm(State, Value) :-
     State = [Agents, Objects, _, _],
     dict_pairs(Agents, _, Pairs1),
@@ -33,7 +30,7 @@ value_of_farm(State, Value) :-
     get_value(Pairs2, Value2),
     Value is Value1 + Value2.
 
-% Function for calculating values from a given list of Key-Value pairs
+% Predicate for calculating values from a given list of Key-Value pairs
 get_value([], 0).
 get_value(_-V, Value) :- V.subtype = wolf, Value is 0.
 get_value(_-V, Value) :- value(V.subtype, Value). % Get value from a single Key-Value pair where Value is either a single agent or a single object dictionary
@@ -43,6 +40,7 @@ get_value([H|T], Value) :-
     Value is Head_Value + Tail_Value.
 
 % 4- find_food_coordinates(+State, +AgentId, -Coordinates)
+% Predicate that finds the coordinates of the foods consumable by the specific Agent at the given State
 find_food_coordinates(State, AgentId, Coordinates) :-
     State = [Agents, Objects, _, _],
     get_agent(State, AgentId, Agent),  % Get the Agent object we want to find food locations for
@@ -70,14 +68,14 @@ find_food_coordinates(State, AgentId, Coordinates) :-
         )
     ).
 
-% Function to find locations of agents with subtype 'Agent_Subtype'
+% Predicate to find locations of agents with subtype 'Agent_Subtype'
 get_agent_location_from_subtype(Agents, Agent_Subtype, [X, Y]) :-
     get_dict(_, Agents, Agent),  % Check all agents
     get_dict(subtype, Agent, Agent_Subtype),  % Check if the subtype of the agent we are currently looking at matches Agent_Subtype
     get_dict(x, Agent, X),  % Get the x coordinate of the current Agent
     get_dict(y, Agent, Y).  % Get the y coordinate of the current Agent
 
-% Function to find locations of objects with subtype 'Object_Subtype'
+% Predicate to find locations of objects with subtype 'Object_Subtype'
 get_object_location_from_subtype(Objects, Object_Subtype, [X, Y]) :-
     get_dict(_, Objects, Object),
     get_dict(subtype, Object, Object_Subtype),
@@ -86,6 +84,7 @@ get_object_location_from_subtype(Objects, Object_Subtype, [X, Y]) :-
 
 
 % 5- find_nearest_agent(+State, +AgentId, -Coordinates, -NearestAgent)
+% Predicate that finds the nearest agent and unifies the agent’s coordinate with Coorinates in the [X,Y] form, and unifies the agent’s dictionary with NearestAgent
 find_nearest_agent(State, AgentId, Coordinates, NearestAgent) :-
     State = [Agents, _, _, _],
     get_agent(State, AgentId, Agent1),  % Our Agent
@@ -98,7 +97,7 @@ find_nearest_agent(State, AgentId, Coordinates, NearestAgent) :-
     Coordinates = [NearestAgent.x, NearestAgent.y],
     !.
 
-% Helper function to keep track of the nearest agent with the minimum distance to a given Agent
+% Helper predicate to keep track of the nearest agent with the minimum distance to a given Agent
 find_nearest_agent_Id(_, [], CurMinDistance, CurMinDistance, CurMinId, CurMinId).
 
 find_nearest_agent_Id(Agent1, [K-V|T], CurMinDistance, MinDistance, CurMinId, MinId) :-
@@ -120,6 +119,8 @@ find_nearest_agent_Id(Agent1, [_-V|T], CurMinDistance, MinDistance, CurMinId, Mi
 
 
 % 6- find_nearest_food(+State, +AgentId, -Coordinates, -FoodType, -Distance)
+% Predicate that finds the nearest consumable food by the Agent and unifies the object’s coordinate with Coorinates
+%in the [X,Y] form, unifies the kind of the food with FoodType, and unifies the Manhattan distance between the food and the agent with Distance
 find_nearest_food(State, AgentId, Coordinates, FoodType, Distance) :-
     State = [Agents, Objects, _, _],
     get_agent(State, AgentId, Agent1),  % Get the agent we want to find the nearest food for
@@ -153,7 +154,7 @@ find_nearest_food(State, AgentId, Coordinates, FoodType, Distance) :-
     !.
 
 
-% Helper function to keep track of the nearest food item Id with the minimum distance to a given Agent
+% Helper predicate to keep track of the nearest food item Id with the minimum distance to a given Agent
 find_nearest_food_Id(_, [], CurMinDistance, CurMinDistance, CurMinId, CurMinId).
 
 find_nearest_food_Id(Agent1, [K-V|T], CurMinDistance, MinDistance, CurMinId, MinId) :-
@@ -174,6 +175,8 @@ find_nearest_food_Id(Agent1, [_-V|T], CurMinDistance, MinDistance, CurMinId, Min
     find_nearest_food_Id(Agent1, T, CurMinDistance, MinDistance, CurMinId, MinId).
 
 % 7- move_to_coordinate(+State, +AgentId, +X, +Y, -ActionList, +DepthLimit)
+% Predicate that finds a series of actions that will get the Agent to a specific [X,Y] coordinate and unify this list
+%of actions with ActionList. The number of actions is limited with the DepthLimit
 move_to_coordinate(State, AgentId, X, Y, [], _) :-  % Check if location has been reached
     get_agent(State, AgentId, Agent),
     Agent.x = X, Agent.y = Y. % If agent has reached the destination location
@@ -188,12 +191,15 @@ move_to_coordinate(State, AgentId, X, Y, ActionList, DepthLimit) :-  % Agent has
     move_to_coordinate(NewState, AgentId, X, Y, RestOfActionList, NewDepthLimit).
 
 % 8- move_to_nearest_food(+State, +AgentId, -ActionList, +DepthLimit)
+% Predicate that finds a series of actions that will get the Agent to the closest food that can be consumed by the
+%Agent and unify this list of actions with ActionList. The number of actions is limited with the DepthLimit
 move_to_nearest_food(State, AgentId,ActionList, DepthLimit) :-
     find_nearest_food(State, AgentId, Coordinates, _, _),  % Find the coordinates of the nearest food
     [X,Y] = Coordinates,
     move_to_coordinate(State, AgentId, X, Y, ActionList, DepthLimit).
 
-% 9- consume_all(+State, +AgentId, -NumberOfMoves, -Value, NumberOfChildren +DepthLimit)
+% 9- consume_all(+State, +AgentId, -NumberOfMoves, -Value, -NumberOfChildren +DepthLimit)
+% Predicate that finds a sequence of actions that will guide the Agent to every consumable food item, beginning with the closest one
 consume_all(State, AgentId, NumberOfMoves, Value, NumberOfChildren, _) :-  % Base case, no more nearest food can be found
     (\+ find_nearest_food(State, AgentId, _, _, _) ) ->
         value_of_farm(State, Value),  % Return total farm value
@@ -227,7 +233,7 @@ consume_all(State, AgentId, NumberOfMoves, Value, NumberOfChildren, DepthLimit) 
     % Return values requested
     NumberOfMoves is TmpNumberOfMoves + MinNumberOfMoves.
     
-% Function to calculate the shortest path to a given coordinate and return amount of moves
+% Predicate to calculate the shortest path to a given coordinate and return amount of moves
 smallest_number_of_moves(_, _, Agent_X, Agent_Y, Target_X, Target_Y, MinNumberOfMoves, _, NodesToVisit, _) :-  % Base case
     Agent_X = Target_X, Agent_Y = Target_Y,  % Target location reached
     NodesToVisit = [VisitedNode|_],
@@ -268,11 +274,11 @@ smallest_number_of_moves(State, AgentId, Agent_X, Agent_Y, Target_X, Target_Y, M
     NextNode = [_, New_Agent_X, New_Agent_Y],
     smallest_number_of_moves(NewState, AgentId, New_Agent_X, New_Agent_Y, Target_X, Target_Y, MinNumberOfMoves, DepthLimit, UpdatedNodesToVisit, UpdatedVisitedNodes).
 
-% Function to append first list to the end of the second list, imitating an enqueue operation
+% Predicate that appends first list to the end of the second list, imitating an enqueue operation
 enqueue(List1, [], List1).
 enqueue(List1, [H|List2], [H|List3]) :- enqueue(List1, List2, List3).
 
-% Function to find new nodes to visit by using an action list
+% Predicate that finds new nodes to visit by using an action list
 find_nodes_to_visit(_, _, [], [], _).  % Base case
 
 find_nodes_to_visit(State, AgentId, PossibleActions, NewNodesToVisit, ParentDepth) :-

@@ -291,6 +291,17 @@ random_move(Agents, Objects, AgentId, Action):-
         ),
     random_member(Action, ActionList).
 
+random_move_list_updated(_, 0, _, []):-!.
+
+random_move_list_updated(State, R, AgentId, [Action_|T]):-
+    R > 0 ,
+    State = [Agents, _, _, _],
+    get_dict(AgentId, Agents, Agent),
+    findall(Action, (can_move(Agent.subtype, Action)), ActionList),
+    random_member(Action_, ActionList),
+    R1 is R - 1,
+    random_move_list_updated(State, R1, AgentId, T).
+
 random_move_list(_, 0, []):-!.
 
 random_move_list(State, R, [Action_|T]):-
@@ -300,7 +311,7 @@ random_move_list(State, R, [Action_|T]):-
     get_dict(CurrentTurn, Agents, Agent),
     findall(Action, (can_move(Agent.subtype, Action)), ActionList),
     random_member(Action_, ActionList),
-    R1 is R + 1,
+    R1 is R - 1,
     random_move_list(State, R1, T).
 
 move_rep(Agents, Objects, AgentId, ActionList):-
